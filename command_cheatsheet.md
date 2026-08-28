@@ -1,767 +1,747 @@
-# Translation Fine-Tuning Project — Command Cheatsheet
-
-**Target setup:** TranslateGemma 4B + QLoRA on an RTX 3070 8 GB.
-
-This cheatsheet follows the same order and titles as the sequence plan.
+# Algerian Darija LLM Adaptation & Translation
+## Commands Cheatsheet
 
 ---
 
-## 0. Define the project and success criteria
+## Table of Contents
+1. [Project Workflow](#project-workflow)
+2. [0. Project Setup](#0-project-setup)
+3. [1. Install Dependencies](#1-install-dependencies)
+4. [2. Verify the Environment](#2-verify-the-environment)
+5. [3. Hugging Face Authentication](#3-hugging-face-authentication)
+6. [4. Recommended Project Directory](#4-recommended-project-directory)
+7. [5. Download / Prepare the Darija Dataset](#5-download--prepare-the-darija-dataset)
+8. [6. Analyze the Darija Dataset](#6-analyze-the-darija-dataset)
+9. [7. Analyze Gemma Tokenization](#7-analyze-gemma-tokenization)
+10. [8. Clean the Darija Corpus](#8-clean-the-darija-corpus)
+11. [9. Split the Darija Data](#9-split-the-darija-data)
+12. [10. Establish the Base Darija Baseline](#10-establish-the-base-darija-baseline)
+13. [11. Prepare Stage 1 Causal-LM Data](#11-prepare-stage-1-causal-lm-data)
+14. [12. Stage 1 Sequence Length](#12-stage-1-sequence-length)
+15. [13. Stage 1 QLoRA Configuration](#13-stage-1-qlora-configuration)
+16. [14. Stage 1 Tiny Training Test](#14-stage-1-tiny-training-test)
+17. [15. Configure Accelerate](#15-configure-accelerate)
+18. [16. Stage 1 Full Training](#16-stage-1-full-training)
+19. [17. Stage 1 Checkpoints](#17-stage-1-checkpoints)
+20. [18. Evaluate Stage 1](#18-evaluate-stage-1)
+21. [19. Prepare Stage 2 Parallel Data](#19-prepare-stage-2-parallel-data)
+22. [20. Clean the Parallel Data](#20-clean-the-parallel-data)
+23. [21. Split the Parallel Data](#21-split-the-parallel-data)
+24. [22. Translation Baseline](#22-translation-baseline)
+25. [23. Format Stage 2 Data](#23-format-stage-2-data)
+26. [24. Stage 2 Tiny Training Test](#24-stage-2-tiny-training-test)
+27. [25. Stage 2 Training](#25-stage-2-training)
+28. [26. Stage 2 Evaluation](#26-stage-2-evaluation)
+29. [27. BLEU Evaluation](#27-bleu-evaluation)
+30. [28. chrF Evaluation](#28-chrf-evaluation)
+31. [29. COMET Evaluation](#29-comet-evaluation)
+32. [30. Human Evaluation](#30-human-evaluation)
+33. [31. Ablation Experiments](#31-ablation-experiments)
+34. [32. Parallel Data Size Experiment](#32-parallel-data-size-experiment)
+35. [33. Error Analysis](#33-error-analysis)
+36. [34. Experiment Tracking](#34-experiment-tracking)
+37. [35. Save Model Artifacts](#35-save-model-artifacts)
+38. [36. Single Inference](#36-single-inference)
+39. [37. Batch Inference](#37-batch-inference)
+40. [38. Inference Benchmark](#38-inference-benchmark)
+41. [39. FastAPI Deployment](#39-fastapi-deployment)
+42. [40. Docker](#40-docker)
+43. [41. Version Control (Git)](#41-version-control-git)
+44. [42. Final Evaluation Table](#42-final-evaluation-table)
+45. [43. Complete Command Workflow Flowchart](#43-complete-command-workflow-flowchart)
+46. [44. Stage 1 vs. Stage 2 Distinction](#44-stage-1-vs-stage-2-distinction)
+47. [45. Final Research Goal & Verification](#45-final-research-goal--verification)
 
-There are no mandatory shell commands here.
+---
 
-Before running anything, define:
+## Project Workflow
 
 ```text
-source language → target language
-dataset/domain
-success criteria
-baseline metrics
-VRAM/latency constraints
+BASE GEMMA
+     │
+     ▼
+STAGE 1: Monolingual Algerian Darija Causal LM
+     │
+     ▼
+DARIJA-ADAPTED MODEL
+     │
+     ▼
+STAGE 2: High-Quality English ↔ Darija SFT
+     │
+     ▼
+FINAL TRANSLATION MODEL
 ```
 
 ---
 
-## 1. Set up the ML environment
+## 0. Project Setup
 
-### Create the project
-
+### Create Project Directory
 ```bash
-mkdir translation-project
-cd translation-project
+mkdir darija-llm-project
+cd darija-llm-project
 ```
 
-**Does:** Creates and enters the project directory.
-
-**Use:** At the beginning of the project.
-
-### Create a virtual environment
-
+### Create and Activate Virtual Environment
 ```bash
+# Create virtual environment
 python -m venv .venv
-```
 
-**Does:** Creates an isolated Python environment.
-
-**Use:** Once when initializing the project.
-
-### Activate — Windows PowerShell
-
-```powershell
+# Windows PowerShell:
 .venv\Scripts\activate
-```
 
-**Use:** Every time you open a new terminal for the project.
-
-### Activate — Linux/macOS
-
-```bash
+# Linux / WSL / macOS:
 source .venv/bin/activate
-```
 
-### Upgrade pip
-
-```bash
+# Upgrade pip
 python -m pip install --upgrade pip
 ```
 
-**Does:** Updates Python's package manager.
+---
 
-**Use:** After creating the environment.
+## 1. Install Dependencies
+
+Install the core machine learning stack:
+```bash
+pip install torch transformers datasets peft trl accelerate bitsandbytes evaluate sacrebleu
+```
+
+*Optional packages:*
+```bash
+pip install sentencepiece
+```
+
+> **Note:** Install COMET separately (`unbabel-comet`) if utilized for the final translation evaluation.
 
 ---
 
-## 2. Acquire and inspect the dataset
-
-### Hugging Face authentication
+## 2. Verify the Environment
 
 ```bash
-hf auth login
+# Check Python version
+python --version
+
+# Check PyTorch version
+python -c "import torch; print(torch.__version__)"
+
+# Check CUDA availability (Expected: True)
+python -c "import torch; print(torch.cuda.is_available())"
+
+# Check active GPU name
+python -c "import torch; print(torch.cuda.get_device_name(0))"
+
+# Check CUDA version used by PyTorch
+python -c "import torch; print(torch.version.cuda)"
+
+# Monitor GPU (Single check / Continuous)
+nvidia-smi
+nvidia-smi -l 1
 ```
 
-Alternative on older Hugging Face CLI versions:
+---
 
+## 3. Hugging Face Authentication
+
+If accessing gated models or datasets:
 ```bash
+hf auth login
+# Or on older setups:
 huggingface-cli login
 ```
 
-**Does:** Authenticates your Hugging Face account.
-
-**Use:** For gated/private models or datasets, and when uploading artifacts.
-
-### Download a Hugging Face repository
-
-```bash
-hf download REPOSITORY_NAME
-```
-
-**Does:** Downloads files from a Hugging Face repository.
-
-**Use:** When you need a model/dataset locally.
-
-Do not download a dataset blindly. First inspect its structure and licensing.
+> **Security Reminder:** Never commit or hard-code access tokens inside source files.
 
 ---
 
-## 3. Build a reproducible data-cleaning pipeline
-
-### Run the cleaning pipeline
-
-```bash
-python scripts/clean_dataset.py
-```
-
-**Does:** Runs your project's cleaning/filtering logic.
-
-**Use:** After inspecting the raw dataset.
-
-Typical output:
+## 4. Recommended Project Directory
 
 ```text
-data/
-├── raw/
-├── cleaned/
-└── processed/
+darija-llm-project/
+│
+├── data/
+│   ├── raw/
+│   ├── cleaned/
+│   ├── processed/
+│   └── splits/
+│
+├── scripts/
+│   ├── clean_darija.py
+│   ├── analyze_darija.py
+│   ├── analyze_tokenization.py
+│   ├── split_darija.py
+│   ├── prepare_causal_lm.py
+│   ├── train_stage1.py
+│   ├── evaluate_darija.py
+│   │
+│   ├── clean_parallel.py
+│   ├── split_parallel.py
+│   ├── format_translation.py
+│   ├── train_stage2.py
+│   ├── evaluate_translation.py
+│   │
+│   ├── inference.py
+│   └── benchmark.py
+│
+├── models/
+│   ├── stage1/
+│   └── stage2/
+│
+├── experiments/
+├── evaluation/
+├── api/
+├── requirements.txt
+├── README.md
+└── .gitignore
 ```
-
-Keep `raw/` unchanged so your preprocessing remains reproducible.
 
 ---
 
-## 4. Perform exploratory data analysis
+## 5. Download / Prepare the Darija Dataset
 
-### Run dataset analysis
+The primary Stage 1 corpus contains approximately **160,000 rows**. First objective: determine actual token volume.
 
+### Download via CLI or Python
 ```bash
-python scripts/analyze_dataset.py
+hf download DATASET_REPOSITORY
 ```
 
-**Does:** Produces dataset statistics such as:
+```python
+from datasets import load_dataset
 
-- sample count
-- length distributions
-- duplicates
-- filtering statistics
-- vocabulary information
-
-**Use:** Before deciding your final preprocessing strategy.
-
-### Inspect installed packages
-
-```bash
-pip list
+dataset = load_dataset("DATASET_NAME")
+print(dataset)
+print(dataset["train"][0])
 ```
-
-**Does:** Lists installed Python packages and versions.
-
-**Use:** Mainly for environment/debugging.
 
 ---
 
-## 5. Split the dataset correctly
-
-### Run your splitting pipeline
+## 6. Analyze the Darija Dataset
 
 ```bash
-python scripts/split_dataset.py
+python scripts/analyze_darija.py
 ```
 
-**Does:** Creates train/validation/test datasets.
-
-**Use:** After cleaning and before model training.
-
-Keep the test set untouched after this point.
+**Key Metrics to Report:**
+- Number of rows
+- Total tokens (using target model's tokenizer)
+- Average / Median tokens per row
+- Min / Max length & percentiles
+- Duplicate count
+- Script distribution (Arabic script, Latin script, Arabizi)
 
 ---
 
-## 6. Establish the baseline
+## 7. Analyze Gemma Tokenization
 
-### Run baseline evaluation
+```python
+from transformers import AutoTokenizer
 
+tokenizer = AutoTokenizer.from_pretrained("MODEL_NAME")
+text = "DARIJA_TEXT"
+tokens = tokenizer.tokenize(text)
+print(tokens)
+print(f"Token count: {len(tokens)}")
+```
+
+Run full tokenization analysis:
 ```bash
-python scripts/evaluate.py --model BASE_MODEL
+python scripts/analyze_tokenization.py
 ```
 
-**Does:** Runs the base TranslateGemma model against your evaluation data.
-
-**Use:** Before fine-tuning.
-
-Record:
-
-```text
-BLEU
-chrF
-COMET
-latency
-tokens/sec
-VRAM
-```
-
-The exact `--model` value depends on the model identifier you choose.
+**Metrics Evaluated:**
+- Tokens per word / Tokens per character
+- Sequence length & word fragmentation
+- Script breakdown: Arabic script, Latin script, Arabizi
 
 ---
 
-## 7. Understand the model before training
-
-### Inspect the tokenizer
+## 8. Clean the Darija Corpus
 
 ```bash
-python -c "from transformers import AutoTokenizer; t=AutoTokenizer.from_pretrained('MODEL'); print(t)"
+python scripts/clean_darija.py
 ```
 
-**Does:** Loads and prints tokenizer information.
+### Pipeline Checks:
+- [x] Empty rows
+- [x] Exact & near duplicates
+- [x] Corrupted text & extreme outliers
+- [x] Irrelevant content & language inconsistencies
 
-**Use:** When investigating tokenization behavior.
+### Preserve Legitimate Dialect Variation:
+- French code-switching
+- Multi-script support (Arabic script, Latin script, Arabizi)
+- Natural spelling variations
 
-### Verify model loading
-
-Your project can expose a small test script such as:
-
-```bash
-python scripts/test_model.py
-```
-
-**Does:** Confirms that the model and tokenizer load successfully.
-
-**Use:** Before configuring training.
+**Data Paths:**
+- Raw data: `data/raw/`
+- Cleaned data: `data/cleaned/`
 
 ---
 
-## 8. Format the dataset for instruction tuning
-
-### Run dataset formatting
+## 9. Split the Darija Data
 
 ```bash
-python scripts/format_dataset.py
+python scripts/split_darija.py
 ```
 
-**Does:** Converts cleaned parallel data into the exact training format expected by the model.
+**Recommended Split:**
+- **90%** Train
+- **5%** Validation
+- **5%** Test *(Must remain untouched)*
 
-**Use:** After cleaning/splitting and before tokenization/training.
-
-The important requirement is that the training prompt format and inference prompt format remain consistent.
+**Output Directory:** `data/splits/{train, validation, test}`
 
 ---
 
-## 9. Understand QLoRA before using it
+## 10. Establish the Base Darija Baseline
 
-There is no single command that "turns on QLoRA."
-
-Your training code will configure concepts such as:
-
-```text
-BitsAndBytesConfig
-LoraConfig
-PEFT
-4-bit quantization
-```
-
-The main package responsible for LoRA/PEFT is:
-
+Evaluate the raw pretrained Gemma model:
 ```bash
-pip install peft bitsandbytes
+python scripts/evaluate_darija.py --model BASE_MODEL
 ```
 
-**Use:** During environment setup if not already installed.
+**Record Metrics:**
+- Validation loss & Perplexity
+- Generation quality samples
+- Latency & Tokens/sec
+- Peak VRAM footprint
 
 ---
 
-## 10. Configure the training experiment
-
-### Configure Hugging Face Accelerate
+## 11. Prepare Stage 1 Causal-LM Data
 
 ```bash
+python scripts/prepare_causal_lm.py
+```
+
+**Sample format:**
+```json
+{
+  "text": "Algerian Darija text..."
+}
+```
+
+*Objective:* Next-token prediction ($t_1 \to t_2 \to t_3$). No translation labels required.
+
+---
+
+## 12. Stage 1 Sequence Length
+
+- **Standard Target:** `max_length = 2048`
+- **Fallback for 8GB VRAM (e.g. RTX 3070):** `max_length = 1024`
+- Use sequence packing to avoid padding waste.
+
+---
+
+## 13. Stage 1 QLoRA Configuration
+
+Using 4-bit quantized base model + LoRA adapters + mixed precision:
+```python
+from transformers import BitsAndBytesConfig
+from peft import LoraConfig
+```
+*(Base model weights remain frozen while adapter weights train).*
+
+---
+
+## 14. Stage 1 Tiny Training Test
+
+Smoke test before long runs:
+```bash
+accelerate launch train_stage1.py --max_steps 20
+```
+
+**Verification Checklist:**
+- [ ] Model & Tokenizer load properly
+- [ ] CUDA allocation & forward pass succeed
+- [ ] Loss computed & backward pass completes
+- [ ] Checkpoint saves and reloads correctly
+- [ ] Generation functions as expected
+
+---
+
+## 15. Configure Accelerate
+
+```bash
+# Configure local environment
 accelerate config
-```
 
-**Does:** Configures how Accelerate launches your training.
-
-**Use:** Before your first Accelerate-based training run.
-
-For your machine, the important characteristic is:
-
-```text
-1 GPU
-```
-
-### Know the main training components
-
-Your training script will generally use:
-
-```text
-BitsAndBytesConfig
-LoraConfig
-TrainingArguments
-SFTTrainer
-AutoModelForCausalLM
-AutoTokenizer
-```
-
-Learn the role of each instead of memorizing the syntax.
-
----
-
-## 11. Run a tiny training experiment first
-
-### Launch a short test run
-
-```bash
-accelerate launch train.py --max_steps 20
-```
-
-**Does:** Launches training through Accelerate for a very small number of steps.
-
-**Use:** Before committing to a long training run.
-
-Check:
-
-```text
-CUDA OOM?
-Loss calculated?
-Backward pass works?
-Checkpoint created?
-Validation works?
-Model reloads?
+# Verify environment details
+accelerate env
 ```
 
 ---
 
-## 12. Monitor training
-
-### Show GPU status
+## 16. Stage 1 Full Training
 
 ```bash
-nvidia-smi
+accelerate launch train_stage1.py
 ```
 
-**Does:** Shows GPU utilization, VRAM usage, temperature, processes, driver information, etc.
-
-**Use:** Anytime you want a snapshot of GPU usage.
-
-### Continuously monitor GPU
-
+**Monitor:**
 ```bash
 nvidia-smi -l 1
 ```
 
-**Does:** Refreshes GPU information every second.
+**Track:**
+- Training/Validation Loss & Perplexity
+- Tokens/sec & Peak VRAM
+- Training Duration & Checkpoint Sizes
 
-**Use:** In a second terminal while training or running inference.
+---
 
-### Check whether PyTorch sees CUDA
-
-```bash
-python -c "import torch; print(torch.cuda.is_available())"
-```
-
-Expected:
+## 17. Stage 1 Checkpoints
 
 ```text
-True
-```
-
-### Show GPU name
-
-```bash
-python -c "import torch; print(torch.cuda.get_device_name(0))"
-```
-
-### Show the CUDA version used by PyTorch
-
-```bash
-python -c "import torch; print(torch.version.cuda)"
+models/
+└── stage1/
+    ├── checkpoint-100/
+    ├── checkpoint-200/
+    ├── checkpoint-300/
+    └── ...
 ```
 
 ---
 
-## 13. Experiment systematically
+## 18. Evaluate Stage 1
 
-### Launch a training experiment
+### Darija Generation & Perplexity
+```bash
+python scripts/evaluate_darija.py --checkpoint models/stage1/CHECKPOINT
+```
+
+### Pre-Stage 2 Translation Check
+```bash
+python scripts/evaluate_translation.py --checkpoint models/stage1/CHECKPOINT
+```
+*(Measures if monolingual adaptation yields zero-shot cross-lingual transfer).*
+
+---
+
+## 19. Prepare Stage 2 Parallel Data
+
+- **Target:** High-quality English ↔ Algerian Darija pairs
+- **Strategy:** Rigorous filtering over raw size (start with ~1,000 clean pairs; experiment with 100, 500, 1,000, 5,000).
+
+---
+
+## 20. Clean the Parallel Data
 
 ```bash
-accelerate launch train.py
+python scripts/clean_parallel.py
 ```
 
-**Does:** Starts your configured training run.
+**Filtering Checklist:**
+- Empty source/target or incorrect translation direction
+- Untranslated text or language mismatches
+- Length ratio anomalies & MT hallucinations
+- Unnatural or distorted Darija
 
-**Use:** Once the tiny test succeeds.
+---
 
-Keep experiment configurations reproducible.
+## 21. Split the Parallel Data
 
-A useful naming pattern is:
-
-```text
-experiments/
-├── exp-001/
-├── exp-002/
-└── exp-003/
+```bash
+python scripts/split_parallel.py
 ```
 
-Record:
+**Split Ratio:**
+- **80%** Train
+- **10%** Validation
+- **10%** Test *(Strictly held-out)*
 
-```text
-model
-dataset version
-LoRA parameters
-learning rate
-batch size
-gradient accumulation
-epochs
-metrics
+---
+
+## 22. Translation Baseline
+
+```bash
+# Base Gemma baseline
+python scripts/evaluate_translation.py --model BASE_MODEL
+
+# Stage 1 baseline
+python scripts/evaluate_translation.py --checkpoint models/stage1/CHECKPOINT
 ```
 
 ---
 
-## 14. Evaluate the fine-tuned model
-
-### Evaluate a checkpoint
+## 23. Format Stage 2 Data
 
 ```bash
-python evaluate.py --checkpoint PATH
+python scripts/format_translation.py
 ```
 
-**Does:** Evaluates the fine-tuned checkpoint.
+### Instruction Formats:
 
-**Use:** After training and whenever you want to compare checkpoints.
+**English → Darija:**
+```text
+User: Translate this English sentence to Algerian Darija:
+I am going to school.
 
-### BLEU with SacreBLEU
+Assistant:
+[DARIJA TRANSLATION]
+```
+
+**Darija → English:**
+```text
+User: Translate this Algerian Darija sentence to English:
+[DARIJA SENTENCE]
+
+Assistant:
+[ENGLISH TRANSLATION]
+```
+
+---
+
+## 24. Stage 2 Tiny Training Test
+
+```bash
+accelerate launch train_stage2.py --max_steps 20
+```
+
+---
+
+## 25. Stage 2 Training
+
+Fine-tune starting from the **Stage 1 model**:
+```bash
+accelerate launch train_stage2.py
+```
+*(Watch for early signs of overfitting on small dataset sizes).*
+
+---
+
+## 26. Stage 2 Evaluation
+
+```bash
+python scripts/evaluate_translation.py --checkpoint models/stage2/CHECKPOINT
+```
+
+---
+
+## 27. BLEU Evaluation
 
 ```bash
 sacrebleu reference.txt -i prediction.txt
 ```
 
-**Does:** Calculates BLEU using SacreBLEU.
+---
 
-**Use:** When you have a reference translation file and model predictions.
-
-### chrF
+## 28. chrF Evaluation
 
 ```bash
 sacrebleu reference.txt -i prediction.txt --chrf
 ```
 
-**Does:** Calculates chrF.
+---
 
-**Use:** Alongside BLEU for complementary MT evaluation.
+## 29. COMET Evaluation
+
+```bash
+comet-score \
+    -s source.txt \
+    -t prediction.txt \
+    -r reference.txt
+```
 
 ---
 
-## 15. Perform error analysis
+## 30. Human Evaluation
 
-### Generate predictions for inspection
+Prepare comparison logs with schema:
+`source` | `reference` | `base_prediction` | `stage1_prediction` | `stage2_prediction`
 
+---
+
+## 31. Ablation Experiments
+
+| ID | Experiment Variant | Description |
+| :--- | :--- | :--- |
+| **A** | Base | Pretrained Gemma baseline |
+| **B** | Monolingual adaptation | Base Gemma + Darija Causal LM (Stage 1) |
+| **C** | Translation-only | Base Gemma + Parallel Translation SFT |
+| **D** | Two-stage (Proposed) | Base Gemma + Stage 1 + Stage 2 SFT |
+
+---
+
+## 32. Parallel Data Size Experiment
+
+Re-train Stage 2 with varying sample sizes (100, 500, 1,000, 5,000 pairs):
 ```bash
-python inference.py --input test.txt --output predictions.txt
+accelerate launch train_stage2.py --data_size 1000
+python scripts/evaluate_translation.py --checkpoint CHECKPOINT
 ```
 
-**Does:** Produces model translations for a collection of inputs.
+---
 
-**Use:** When manually inspecting errors and preparing evaluation reports.
+## 33. Error Analysis
 
-Create an analysis dataset containing:
+```bash
+python scripts/inference.py --input evaluation/test.txt --output evaluation/predictions.txt
+```
+
+**Error Taxonomy:** Grammar, Vocabulary, Spelling, Code-switching, Hallucinations, Literal translations, Direction confusion, Long sentence failures.
+
+---
+
+## 34. Experiment Tracking
 
 ```text
-source
-reference
-baseline prediction
-fine-tuned prediction
-error category
-notes
+experiments/
+└── exp-001/
+    ├── config.json
+    ├── metrics.json
+    ├── generations.json
+    └── notes.md
 ```
-
-There is no universal shell command for human error analysis; this is an analysis workflow.
 
 ---
 
-## 16. Compare against the baseline
-
-### Run your evaluation pipeline
-
-```bash
-python evaluate.py --model BASE_MODEL
-python evaluate.py --checkpoint FINE_TUNED_CHECKPOINT
-```
-
-**Does:** Produces directly comparable baseline and fine-tuned results.
-
-**Use:** To determine whether fine-tuning actually helped.
-
-Compare:
+## 35. Save Model Artifacts
 
 ```text
-BLEU
-chrF
-COMET
-latency
-tokens/sec
-VRAM
+models/
+├── stage1/
+│   ├── adapter/
+│   └── config/
+└── stage2/
+    ├── adapter/
+    └── config/
 ```
-
-Use the same test set and evaluation procedure for both.
 
 ---
 
-## 17. Save and package the model
-
-### Inspect Git status
+## 36. Single Inference
 
 ```bash
-git status
+# Darija text generation (Stage 1)
+python scripts/inference.py \
+    --checkpoint models/stage1/adapter \
+    --text "DARIJA_TEXT"
+
+# English <-> Darija translation (Stage 2)
+python scripts/inference.py \
+    --checkpoint models/stage2/adapter \
+    --task translation \
+    --text "YOUR_TEXT"
 ```
 
-**Does:** Shows modified/untracked files.
+---
 
-**Use:** Before committing project changes.
+## 37. Batch Inference
 
-### Initialize Git
+```bash
+python scripts/inference.py --input input.txt --output predictions.txt
+```
+
+---
+
+## 38. Inference Benchmark
+
+```bash
+python scripts/benchmark.py
+```
+*Measures first-token latency, tokens/sec throughput, and VRAM utilization across Base, Stage 1, and Stage 2.*
+
+---
+
+## 39. FastAPI Deployment
+
+```bash
+# Launch API server
+uvicorn api:app --host 0.0.0.0 --port 8000
+
+# Health check
+curl http://localhost:8000/health
+
+# Translation request
+curl -X POST http://localhost:8000/translate \
+     -H "Content-Type: application/json" \
+     -d '{"text": "Hello, how are you?", "direction": "en2dz"}'
+```
+
+---
+
+## 40. Docker
+
+```bash
+# Build image
+docker build -t darija-llm .
+
+# Run container with GPU acceleration
+docker run --gpus all -p 8000:8000 darija-llm
+```
+
+---
+
+## 41. Version Control (Git)
 
 ```bash
 git init
-```
-
-**Does:** Creates a Git repository.
-
-**Use:** Once when starting version control.
-
-### Stage files
-
-```bash
+git status
 git add .
+git commit -m "Build Algerian Darija LLM adaptation pipeline"
 ```
 
-**Does:** Stages changes for a commit.
+> **Ignore Rules:** Exclude `.venv/`, `.parquet`, `.csv`, raw checkpoints, and API keys via `.gitignore`.
 
-**Use:** After reviewing what should be committed.
+---
 
-### Commit
+## 42. Final Evaluation Table
 
-```bash
-git commit -m "Initial translation fine-tuning pipeline"
-```
+| Model | Darija PPL | BLEU | chrF | COMET |
+| :--- | :---: | :---: | :---: | :---: |
+| **Base Gemma** | - | - | - | - |
+| **Stage 1 (Adapted)** | - | - | - | - |
+| **Parallel-only (Direct SFT)** | - | - | - | - |
+| **Stage 1 + Stage 2 (Full)** | - | - | - | - |
 
-**Does:** Creates a versioned snapshot of your source code/configuration.
+---
 
-**Use:** After meaningful project changes.
-
-Do not commit:
+## 43. Complete Command Workflow Flowchart
 
 ```text
-.venv/
-large datasets
-model weights
-checkpoints
-API tokens/secrets
+[Project Init & Env Setup]
+         │
+         ▼
+[Acquire & Clean 160k Monolingual Corpus]
+         │
+         ▼
+[Tokenizer Analysis & Base Darija Baseline]
+         │
+         ▼
+[STAGE 1: QLoRA Causal LM Training]
+         │
+         ▼
+[Evaluate Stage 1 (PPL & Zero-Shot Translation)]
+         │
+         ▼
+[Filter & Prepare Parallel Translation Pairs]
+         │
+         ▼
+[STAGE 2: Instruction SFT Training]
+         │
+         ▼
+[Evaluate (BLEU, chrF, COMET, Human Eval)]
+         │
+         ▼
+[Ablations, Benchmarking & FastAPI / Docker Deployment]
 ```
-
-unless you intentionally use an appropriate artifact-storage strategy.
 
 ---
 
-## 18. Build an inference pipeline
+## 44. Stage 1 vs. Stage 2 Distinction
 
-### Single-text inference
-
-```bash
-python inference.py --text "YOUR TEXT"
-```
-
-**Does:** Generates a translation for one input.
-
-**Use:** Quick manual testing.
-
-### Batch inference
-
-```bash
-python inference.py --input input.txt --output translations.txt
-```
-
-**Does:** Translates a file of inputs.
-
-**Use:** Evaluation, testing, or batch processing.
+| Dimension | Stage 1 (Monolingual Adaptation) | Stage 2 (Translation SFT) |
+| :--- | :--- | :--- |
+| **Input** | Unlabeled Algerian Darija text | English ↔ Algerian Darija pairs |
+| **Objective** | Causal next-token prediction | Supervised Instruction Fine-Tuning |
+| **Dataset** | ~160k monolingual Darija corpus | High-quality filtered parallel pairs |
+| **Primary Goal**| Domain & dialect language acquisition | Cross-lingual translation alignment |
 
 ---
 
-## 19. Optimize inference
+## 45. Final Research Goal & Verification
 
-### Benchmark inference
-
-```bash
-python benchmark.py
-```
-
-**Does:** Measures your inference system.
-
-Track:
-
-```text
-model loading time
-first-token latency
-total latency
-tokens/sec
-VRAM
-```
-
-### Monitor GPU while benchmarking
-
-```bash
-nvidia-smi -l 1
-```
-
-**Use:** Determine the actual GPU/VRAM cost of inference.
-
----
-
-## 20. Serve the model
-
-### Start a FastAPI server
-
-```bash
-uvicorn api:app --host 0.0.0.0 --port 8000
-```
-
-**Does:** Starts your translation API.
-
-**Use:** Once local inference works reliably.
-
-### Test the health endpoint
-
-```bash
-curl http://localhost:8000/health
-```
-
-**Does:** Checks whether the service is reachable.
-
-**Use:** Basic service testing and later health checks.
-
-### Test translation endpoint
-
-```bash
-curl -X POST http://localhost:8000/translate
-```
-
-**Does:** Sends a POST request to your translation endpoint.
-
-**Use:** API testing.
-
-The exact request body depends on your API implementation.
-
----
-
-# Additional GPU/Environment Commands
-
-These are useful throughout the project.
-
-## Check NVIDIA driver/GPU
-
-```bash
-nvidia-smi
-```
-
-Use when:
-
-- CUDA isn't working
-- VRAM is unexpectedly full
-- training is slow
-- you suspect another process is using the GPU
-
-## Continuously monitor GPU
-
-```bash
-nvidia-smi -l 1
-```
-
-Use during:
-
-- training
-- inference
-- benchmarking
-
-## Check PyTorch CUDA
-
-```bash
-python -c "import torch; print(torch.cuda.is_available())"
-```
-
-Use when debugging CUDA/PyTorch.
-
-## Check PyTorch version
-
-```bash
-python -c "import torch; print(torch.__version__)"
-```
-
-## Check Transformers version
-
-```bash
-python -c "import transformers; print(transformers.__version__)"
-```
-
-## Check PEFT version
-
-```bash
-python -c "import peft; print(peft.__version__)"
-```
-
-These are useful when reproducing experiments or diagnosing dependency conflicts.
-
----
-
-# Final Project Flow
-
-The entire command-oriented workflow is:
-
-```text
-mkdir translation-project
-        ↓
-python -m venv .venv
-        ↓
-activate environment
-        ↓
-pip install ...
-        ↓
-nvidia-smi
-        ↓
-verify PyTorch + CUDA
-        ↓
-download/prepare dataset
-        ↓
-analyze_dataset.py
-        ↓
-clean_dataset.py
-        ↓
-split_dataset.py
-        ↓
-format_dataset.py
-        ↓
-evaluate.py --model BASE_MODEL
-        ↓
-accelerate config
-        ↓
-tiny QLoRA training
-        ↓
-nvidia-smi -l 1
-        ↓
-full training
-        ↓
-evaluate.py --checkpoint ...
-        ↓
-BLEU / chrF / COMET
-        ↓
-error analysis
-        ↓
-compare with baseline
-        ↓
-package adapter + configuration
-        ↓
-inference.py
-        ↓
-benchmark.py
-        ↓
-FastAPI
-        ↓
-Docker
-```
-
-The key principle is:
-
-**Don't optimize for getting the model trained as quickly as possible. Optimize for understanding every stage of the pipeline and being able to explain why you made each engineering decision.**
+The final experiment answers:
+1. **Does monolingual Algerian Darija adaptation improve the model's ability to model and generate Algerian Darija?**
+2. **Does prior monolingual adaptation make a small amount of English ↔ Algerian Darija parallel data significantly more sample-efficient?**
