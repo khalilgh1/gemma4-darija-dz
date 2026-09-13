@@ -9,6 +9,26 @@ Fine-tuning **Google Gemma 4 (`google/gemma-4-E2B`)** on **Algerian Arabic (Dari
 
 ---
 
+## 📸 Interactive Web Interface Showcase
+
+<p align="center">
+  <b>1. Ready & Connected Interface (English ➔ Algerian Darija)</b><br>
+  <img src="screenshots/image1.png" alt="Web Interface Home & Warmup" width="95%" />
+</p>
+
+<p align="center">
+  <b>2. English to Algerian Darija Live Translation</b><br>
+  <img src="screenshots/image2.png" alt="English to Darija Translation" width="95%" />
+</p>
+
+<p align="center">
+  <b>3. Algerian Darija to English Live Translation (Swapped Direction)</b><br>
+  <img src="screenshots/image.png" alt="Darija to English Translation" width="95%" />
+</p>
+
+---
+
+
 ## 📌 Table of Contents
 1. [Project Overview & Research Questions](#-project-overview--research-questions)
 2. [End-to-End Pipeline & Methodology](#-end-to-end-pipeline--methodology)

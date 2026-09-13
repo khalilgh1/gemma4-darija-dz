@@ -118,10 +118,39 @@ def translate_en_dz(text: str) -> str:
     return clean_darija_translation(raw_translation)
 
 
+import re
+
+def has_arabic(text: str) -> bool:
+    """Return True if text contains Arabic/Darija script characters."""
+    return bool(re.search(r"[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]", text))
+
+
 def translate_dz_en(text: str) -> str:
-    """Translate text from Algerian Darija to English."""
+    """
+    Translate text from Algerian Darija to English.
+    If the base generation occasionally loops or mirrors in Arabic/Darija,
+    it automatically conditions generation on an English start token (`<em>`)
+    which reliably steers Gemma 4 into English output.
+    """
     prompt = AR_TO_EN_TEMPLATE.format(sentence=text.strip())
-    return run_model_inference(prompt)
+    raw_translation = run_model_inference(prompt)
+
+    # If output still contains Arabic script, steer the generation with English prefix conditioning
+    if has_arabic(raw_translation):
+        steered_prompt = (
+            f"Translate the following Algerian Darija sentence to English:\n\n"
+            f"{text.strip()}\n\n"
+            f"Translation: <em>"
+        )
+        retry_translation = run_model_inference(steered_prompt)
+        if retry_translation and not has_arabic(retry_translation):
+            raw_translation = retry_translation
+
+    # Strip conversational tags (<em>, <strong>, etc.) and clean leading artifacts
+    raw_translation = re.sub(r"</?[a-zA-Z0-9]+>", "", raw_translation).strip()
+    return raw_translation
+
+
 
 
 
