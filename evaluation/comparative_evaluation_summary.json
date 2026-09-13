@@ -1,0 +1,47 @@
+{
+    "sample_size": 500,
+    "two_stage_model": {
+        "adapter_path": "./gemma4-darija-en-translation-qlora",
+        "english_to_darija": {
+            "BLEU": 25.64,
+            "BLEU_bp": 0.7122,
+            "sys_len": 12609,
+            "ref_len": 16888,
+            "len_ratio": 0.747,
+            "chrF++": 45.33
+        },
+        "darija_to_english": {
+            "BLEU": 41.91,
+            "BLEU_bp": 0.7456,
+            "sys_len": 17958,
+            "ref_len": 23230,
+            "len_ratio": 0.773,
+            "chrF++": 54.82
+        }
+    },
+    "standalone_model": {
+        "adapter_path": "./gemma4-darija-en-translation-standalone-qlora",
+        "english_to_darija": {
+            "BLEU": 25.99,
+            "BLEU_bp": 0.7134,
+            "sys_len": 12624,
+            "ref_len": 16888,
+            "len_ratio": 0.748,
+            "chrF++": 45.7,
+            "BERTScore_Precision": 85.24,
+            "BERTScore_Recall": 83.97,
+            "BERTScore_F1": 84.56
+        },
+        "darija_to_english": {
+            "BLEU": 42.25,
+            "BLEU_bp": 0.7395,
+            "sys_len": 17844,
+            "ref_len": 23230,
+            "len_ratio": 0.768,
+            "chrF++": 55.18,
+            "BERTScore_Precision": 100.0,
+            "BERTScore_Recall": 100.0,
+            "BERTScore_F1": 100.0
+        }
+    }
+}

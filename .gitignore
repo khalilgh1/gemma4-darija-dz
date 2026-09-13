@@ -1,1 +1,32 @@
+# Environment & Dependencies
+.venv/
+venv/
+env/
+ENV/
 .env
+
+# Python Bytecode & Caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
+
+# Training Checkpoints & Intermediate States (Large Files)
+**/checkpoint-*/
+*.pt
+*.pth
+*.bin
+*.pkl
+optimizer.pt
+scaler.pt
+scheduler.pt
+rng_state.pth
+
+# Data cache & raw temp files
+*.tmp
+*.log
+.DS_Store
+Thumbs.db
