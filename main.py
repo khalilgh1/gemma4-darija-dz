@@ -99,16 +99,30 @@ def run_model_inference(prompt: str, max_new_tokens: int = 128) -> str:
     return translation
 
 
+def clean_darija_translation(text: str) -> str:
+    """
+    Remove irrelevant leading 'ڨاع' prefix often added by conversational fine-tuning artifacts.
+    If the response sentence is only one word 'ڨاع', do not remove it.
+    """
+    cleaned = text.strip()
+    words = cleaned.split()
+    if len(words) > 1 and words[0] == "ڨاع":
+        return " ".join(words[1:]).strip()
+    return cleaned
+
+
 def translate_en_dz(text: str) -> str:
     """Translate text from English to Algerian Darija."""
     prompt = EN_TO_AR_TEMPLATE.format(sentence=text.strip())
-    return run_model_inference(prompt)
+    raw_translation = run_model_inference(prompt)
+    return clean_darija_translation(raw_translation)
 
 
 def translate_dz_en(text: str) -> str:
     """Translate text from Algerian Darija to English."""
     prompt = AR_TO_EN_TEMPLATE.format(sentence=text.strip())
     return run_model_inference(prompt)
+
 
 
 from fastapi.responses import FileResponse

@@ -676,6 +676,15 @@
       charCount.textContent = `${inputText.value.length} characters`;
     }
 
+    function cleanDarijaPrefix(text) {
+      const trimmed = text.trim();
+      const words = trimmed.split(/\s+/);
+      if (words.length > 1 && words[0] === "ڨاع") {
+        return words.slice(1).join(" ").trim();
+      }
+      return trimmed;
+    }
+
     function showToast(msg) {
       toast.textContent = msg;
       toast.classList.add("show");
@@ -714,10 +723,17 @@
         const data = await response.json();
         const duration = Math.round(performance.now() - startTime);
 
-        outputArea.textContent = data.translation || "(No translation returned)";
+        let finalTranslation = data.translation || "(No translation returned)";
+        // In en_dz mode, ensure any leading 'ڨاع' prefix is stripped unless it is the only word
+        if (currentDirection === "en_dz" && typeof finalTranslation === "string") {
+          finalTranslation = cleanDarijaPrefix(finalTranslation);
+        }
+
+        outputArea.textContent = finalTranslation;
         latencyTag.textContent = `Inference: ${duration}ms`;
       } catch (err) {
         console.error("Translation error:", err);
+
         outputArea.innerHTML = `<span style="color: #f87171;">Failed to connect to backend: ${err.message}</span>`;
         latencyTag.textContent = "Inference: Error";
       } finally {
