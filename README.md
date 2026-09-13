@@ -18,6 +18,8 @@ Fine-tuning **Google Gemma 4 (`google/gemma-4-E2B`)** on **Algerian Arabic (Dari
 6. [Repository Structure & Organization](#-repository-structure--organization)
 7. [Repository Size Audit & Cleanup Guide](#-repository-size-audit--cleanup-guide)
 8. [Quick Start & Inference Guide](#-quick-start--inference-guide)
+9. [FastAPI Backend & Interactive Web UI](#-fastapi-backend--interactive-web-ui)
+10. [Inference Post-Processing: Colloquial Prefix Heuristic](#-inference-post-processing-colloquial-prefix-heuristic)
 
 ---
 
@@ -227,6 +229,8 @@ gemma4-darija-dz/
 │
 ├── .gitignore                                    # Hardened gitignore (.venv, checkpoints, caches)
 ├── pyproject.toml                                # Project metadata & dependencies
+├── main.py                                       # FastAPI inference backend (CORS, REST endpoints)
+├── index.html                                    # Standalone Algerian-themed web UI & warmup client
 └── README.md                                     # Project documentation & research summary
 ```
 
@@ -305,7 +309,88 @@ Results will be automatically updated in `evaluation/comparison_evaluation_resul
 
 ---
 
+## ⚡ FastAPI Backend & Interactive Web UI
+
+The repository includes a production-ready, low-latency FastAPI inference backend and a responsive Algerian-themed web UI for interactive bidirectional translation.
+
+### 1. Launching the Backend
+
+Start the FastAPI development server with auto-reload:
+
+```bash
+uv run fastapi dev
+```
+
+The backend automatically:
+- Loads the 4-bit quantized base model (`google/gemma-4-E2B`) and the fine-tuned Standalone LoRA adapter (`models/gemma4-darija-en-translation-standalone-qlora`).
+- Mounts CORS middleware allowing cross-origin requests from any frontend client.
+- Serves the interactive web interface directly at `http://127.0.0.1:8000/`.
+- Provides interactive Swagger documentation at `http://127.0.0.1:8000/docs`.
+
+### 2. REST API Specification
+
+#### `POST /translate`
+Request body (JSON):
+```json
+{
+  "text": "Hello, how are you?",
+  "direction": "en_dz"
+}
+```
+
+Response (JSON):
+```json
+{
+  "original": "Hello, how are you?",
+  "direction": "en_dz",
+  "translation": "ڨالو، واش راك؟"
+}
+```
+
+#### `GET /translate`
+Query parameters:
+- `text` (string): Text to translate.
+- `direction` (`en_dz` | `dz_en`, default: `en_dz`): Translation direction.
+
+### 3. Web Interface Features (`index.html`)
+
+- **Algerian Cultural Aesthetics**: Dark-mode glassmorphic theme incorporating Algerian national green (`#006233`), crescent red (`#D21034`), and Islamic geometric accents.
+- **Bidirectional Controls**: Instant direction swap toggle (`English ⟷ الدارجة الجزائرية`) and keyboard shortcut (`Ctrl+S`).
+- **Dynamic Typography & Directionality**: Automatically switches between English (`Outfit`, LTR) and Arabic (`Amiri`, RTL) input/output configurations.
+- **Client-Side Model Warmup**: As soon as the page loads, an asynchronous dummy request is dispatched to prime CUDA kernels and KV cache, ensuring sub-second response times for subsequent user queries.
+- **Productivity Utilities**: One-click clipboard copy with toast notifications, sample prompt presets, character counter, and latency metrics.
+
+---
+
+## 🧹 Inference Post-Processing: Colloquial Prefix Heuristic
+
+### Problem Statement
+Empirical evaluation revealed that continuing pre-training on conversational social media text caused the fine-tuned model to frequently inject the colloquial filler prefix **"ڨاع"** (*"all / completely"*) at the beginning of English $\rightarrow$ Darija translations, even when absent from the source semantics (e.g., *"Mohamed's Center"* $\rightarrow$ *"ڨاع مركز محمد"*).
+
+### Solution & Rule Implementation
+A deterministic post-processing heuristic is implemented in both the backend (`main.py`) and frontend (`index.html`):
+
+```python
+def clean_darija_translation(text: str) -> str:
+    """
+    Remove irrelevant leading 'ڨاع' prefix introduced by conversational artifacts.
+    If the translated output is solely the single word 'ڨاع', it is preserved.
+    """
+    cleaned = text.strip()
+    words = cleaned.split()
+    if len(words) > 1 and words[0] == "ڨاع":
+        return " ".join(words[1:]).strip()
+    return cleaned
+```
+
+- **Multi-word output with artifact:** `"ڨاع شكرا بزاف"` $\rightarrow$ `"شكرا بزاف"` (prefix stripped)
+- **Single-word legitimate output:** `"ڨاع"` $\rightarrow$ `"ڨاع"` (preserved)
+- **Standard output:** `"شكرا جزيلا"` $\rightarrow$ `"شكرا جزيلا"` (unchanged)
+
+---
+
 ## 📜 Acknowledgements & Datasets
+
 
 We gratefully acknowledge the creators of the open-source datasets utilized in this research:
 - **Monolingual Darija Corpus**: [`ayoubkirouane/Algerian-Darija`](https://huggingface.co/datasets/ayoubkirouane/Algerian-Darija) on Hugging Face (crawled text filtered, script-separated, and cleaned into `data/processed/arabic_v1.csv`).
