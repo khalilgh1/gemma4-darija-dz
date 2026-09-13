@@ -111,9 +111,20 @@ def translate_dz_en(text: str) -> str:
     return run_model_inference(prompt)
 
 
+from fastapi.responses import FileResponse
+
 @app.get("/")
 def root():
+    index_path = os.path.join(os.path.dirname(__file__), "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
     return {"message": "Gemma 4 Algerian Darija Translation Backend is running"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "model": "google/gemma-4-E2B", "adapter": adapter_path}
+
 
 
 @app.get("/translate", response_model=TranslationResponse)

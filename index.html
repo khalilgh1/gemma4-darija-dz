@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gemma 4 • Algerian Darija Translator (مترجم الدارجة الجزائرية)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --dz-green: #006233;
+      --dz-green-light: #008744;
+      --dz-green-soft: rgba(0, 98, 51, 0.08);
+      --dz-red: #D21034;
+      --dz-red-soft: rgba(210, 16, 52, 0.12);
+      --bg-gradient: radial-gradient(circle at 50% 0%, #0d2e1f 0%, #081510 50%, #050b08 100%);
+      --card-bg: rgba(18, 30, 24, 0.78);
+      --card-border: rgba(0, 135, 68, 0.25);
+      --card-border-glow: rgba(0, 180, 90, 0.45);
+      --text-main: #f3f5f4;
+      --text-muted: #95a59d;
+      --panel-bg: rgba(10, 20, 15, 0.85);
+      --border-panel: rgba(255, 255, 255, 0.08);
+      --font-en: 'Outfit', sans-serif;
+      --font-ar: 'Amiri', serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      font-family: var(--font-en);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Subtle background Algerian Islamic geometric pattern simulation */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: 
+        radial-gradient(var(--dz-green-light) 0.65px, transparent 0.65px),
+        radial-gradient(var(--dz-red) 0.65px, transparent 0.65px);
+      background-size: 32px 32px;
+      background-position: 0 0, 16px 16px;
+      opacity: 0.06;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 980px;
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Header styling */
+    header {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      background: rgba(0, 98, 51, 0.25);
+      border: 1px solid rgba(0, 135, 68, 0.4);
+      border-radius: 9999px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: #79e2a8;
+      backdrop-filter: blur(8px);
+      letter-spacing: 0.5px;
+    }
+
+    .crescent-star {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--dz-red);
+      font-size: 1.1rem;
+      line-height: 1;
+      filter: drop-shadow(0 0 6px rgba(210, 16, 52, 0.6));
+    }
+
+    h1 {
+      font-size: 2.1rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #ffffff 40%, #8ae4b5 80%, #d21034 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      max-width: 580px;
+    }
+
+    .ar-heading {
+      font-family: var(--font-ar);
+      font-size: 1.35rem;
+      color: #8ae4b5;
+      direction: rtl;
+    }
+
+    /* Warmup status badge */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      background: rgba(14, 25, 20, 0.6);
+      border-radius: 12px;
+      border: 1px solid var(--border-panel);
+      font-size: 0.8rem;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-muted);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #eab308;
+      box-shadow: 0 0 8px #eab308;
+      transition: all 0.3s ease;
+    }
+
+    .dot.ready {
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+    }
+
+    .dot.error {
+      background: #ef4444;
+      box-shadow: 0 0 8px #ef4444;
+    }
+
+    .server-url {
+      font-family: monospace;
+      color: #63987e;
+      font-size: 0.75rem;
+    }
+
+    /* Main Translator Card */
+    .translator-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(16px);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* Direction switcher toolbar */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border-panel);
+    }
+
+    .lang-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #e5eae7;
+    }
+
+    .flag-icon {
+      font-size: 1.2rem;
+    }
+
+    .swap-btn {
+      background: rgba(0, 98, 51, 0.3);
+      border: 1px solid rgba(0, 180, 90, 0.3);
+      color: #8ae4b5;
+      padding: 8px 16px;
+      border-radius: 9999px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.25s ease;
+    }
+
+    .swap-btn:hover {
+      background: rgba(0, 135, 68, 0.5);
+      border-color: rgba(0, 220, 110, 0.6);
+      transform: scale(1.04);
+      color: #ffffff;
+      box-shadow: 0 0 16px rgba(0, 135, 68, 0.4);
+    }
+
+    .swap-btn svg {
+      transition: transform 0.3s ease;
+    }
+
+    .swap-btn:active svg {
+      transform: rotate(180deg);
+    }
+
+    /* Translation Grid (Source & Target panels) */
+    .panels-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 768px) {
+      .panels-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-panel);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      min-height: 240px;
+      position: relative;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .panel:focus-within {
+      border-color: var(--card-border-glow);
+      box-shadow: 0 0 16px rgba(0, 135, 68, 0.2);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+    }
+
+    textarea {
+      flex: 1;
+      width: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      resize: none;
+      color: var(--text-main);
+      font-size: 1.08rem;
+      line-height: 1.6;
+      font-family: inherit;
+    }
+
+    textarea::placeholder {
+      color: #4f6358;
+    }
+
+    .darija-input {
+      direction: rtl;
+      font-family: var(--font-ar);
+      font-size: 1.35rem;
+    }
+
+    .panel-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .btn-action {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.8rem;
+    }
+
+    .btn-action:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    /* Output Panel */
+    .output-area {
+      flex: 1;
+      font-size: 1.08rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #ffffff;
+      overflow-y: auto;
+    }
+
+    .output-area.darija-output {
+      direction: rtl;
+      font-family: var(--font-ar);
+      font-size: 1.35rem;
+      color: #d1f7e0;
+    }
+
+    .output-placeholder {
+      color: #44564c;
+      font-style: italic;
+    }
+
+    /* Quick Examples Carousel / Pills */
+    .examples-section {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .examples-label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .example-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #b5c7bd;
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .example-btn:hover {
+      background: rgba(0, 98, 51, 0.35);
+      border-color: rgba(0, 180, 90, 0.4);
+      color: #fff;
+    }
+
+    /* Action bar with primary submit button */
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .char-count {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .btn-translate {
+      background: linear-gradient(135deg, var(--dz-green-light) 0%, var(--dz-green) 100%);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 12px 30px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 18px rgba(0, 135, 68, 0.4);
+      transition: all 0.25s ease;
+    }
+
+    .btn-translate:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 135, 68, 0.6);
+      background: linear-gradient(135deg, #02a052 0%, var(--dz-green-light) 100%);
+    }
+
+    .btn-translate:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      background: rgba(18, 30, 24, 0.95);
+      border: 1px solid rgba(0, 180, 90, 0.4);
+      color: #e5eae7;
+      padding: 10px 20px;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      font-size: 0.88rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 0.8rem;
+      color: #5c7467;
+      margin-top: 10px;
+    }
+
+    footer a {
+      color: #79e2a8;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <div class="badge-pill">
+        <span class="crescent-star">☪</span>
+        <span>Google Gemma 4 • Fine-Tuned LoRA</span>
+        <span class="crescent-star">🇩🇿</span>
+      </div>
+      <h1>Algerian Darija Translator</h1>
+      <p class="ar-heading">مترجم الدارجة الجزائرية ⟷ الإنجليزية</p>
+      <p class="subtitle">Bidirectional Neural Translation powered by QLoRA fine-tuning on Algerian Darija (`ar-DZ`)</p>
+    </header>
+
+    <!-- Warm-up & Health status -->
+    <div class="status-bar">
+      <div class="status-indicator">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">Warming up model weights...</span>
+      </div>
+      <div class="server-url">Endpoint: <span id="endpointUrl">http://127.0.0.1:8000/translate</span></div>
+    </div>
+
+    <!-- Translator Card -->
+    <main class="translator-card">
+      <div class="toolbar">
+        <div class="lang-pill" id="sourceLangBadge">
+          <span class="flag-icon">🇬🇧</span>
+          <span>English</span>
+        </div>
+
+        <button class="swap-btn" id="swapBtn" title="Swap Translation Direction (Ctrl+S)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="17 1 21 5 17 9"></polyline>
+            <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+            <polyline points="7 23 3 19 7 15"></polyline>
+            <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+          </svg>
+          <span id="swapBtnLabel">Swap Direction</span>
+        </button>
+
+        <div class="lang-pill" id="targetLangBadge">
+          <span class="flag-icon">🇩🇿</span>
+          <span class="ar-heading" style="font-size: 1.1rem;">الدارجة الجزائرية</span>
+        </div>
+      </div>
+
+      <!-- Input & Output Panels -->
+      <div class="panels-grid">
+        <!-- Source Input -->
+        <div class="panel">
+          <div class="panel-header">
+            <span id="sourceLabel">Source Text (English)</span>
+            <button class="btn-action" id="clearBtn" title="Clear text">✕ Clear</button>
+          </div>
+          <textarea 
+            id="inputText" 
+            placeholder="Type your English sentence here (e.g., 'Hello, how are you?')..."
+            autofocus
+          ></textarea>
+          <div class="panel-footer">
+            <span class="char-count" id="charCount">0 characters</span>
+            <span style="font-size: 0.72rem; color: #647b6f;">Press Enter to translate</span>
+          </div>
+        </div>
+
+        <!-- Target Output -->
+        <div class="panel">
+          <div class="panel-header">
+            <span id="targetLabel">Translation (Algerian Darija)</span>
+            <button class="btn-action" id="copyBtn" title="Copy translation">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              Copy
+            </button>
+          </div>
+          <div class="output-area darija-output" id="outputArea">
+            <span class="output-placeholder">The translation will appear here...</span>
+          </div>
+          <div class="panel-footer">
+            <span id="latencyTag" style="font-size: 0.72rem; color: #647b6f;">Inference: Ready</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick prompts & Examples -->
+      <div class="examples-section">
+        <span class="examples-label">Examples:</span>
+        <div id="examplePills" style="display: inline-flex; gap: 8px; flex-wrap: wrap;"></div>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="actions">
+        <button class="btn-translate" id="translateBtn">
+          <div class="spinner" id="spinner"></div>
+          <span id="btnText">Translate / ترجم</span>
+        </button>
+      </div>
+    </main>
+
+    <footer>
+      Gemma 4 Algerian Arabic Translation Backend • Fast & Local Inference • <a href="http://127.0.0.1:8000/docs" target="_blank">API Docs</a>
+    </footer>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast">Translation copied to clipboard!</div>
+
+  <script>
+    // Configuration
+    const API_ENDPOINT = "http://127.0.0.1:8000/translate";
+    
+    // State
+    let currentDirection = "en_dz"; // "en_dz" or "dz_en"
+    let isTranslating = false;
+
+    // DOM Elements
+    const inputText = document.getElementById("inputText");
+    const outputArea = document.getElementById("outputArea");
+    const translateBtn = document.getElementById("translateBtn");
+    const spinner = document.getElementById("spinner");
+    const btnText = document.getElementById("btnText");
+    const swapBtn = document.getElementById("swapBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const copyBtn = document.getElementById("copyBtn");
+    const charCount = document.getElementById("charCount");
+    const latencyTag = document.getElementById("latencyTag");
+    const statusDot = document.getElementById("statusDot");
+    const statusText = document.getElementById("statusText");
+    const sourceLangBadge = document.getElementById("sourceLangBadge");
+    const targetLangBadge = document.getElementById("targetLangBadge");
+    const sourceLabel = document.getElementById("sourceLabel");
+    const targetLabel = document.getElementById("targetLabel");
+    const examplePills = document.getElementById("examplePills");
+    const toast = document.getElementById("toast");
+
+    const samplePresets = {
+      en_dz: [
+        "Hello, how are you?",
+        "Welcome to Algeria, my friend!",
+        "What are you doing today?",
+        "Where is the nearest restaurant?"
+      ],
+      dz_en: [
+        "ڨالو، واش راك؟",
+        "مرحبا بيك في الجزائر يا خويا!",
+        "واش راك دير اليوم؟",
+        "وين راهي أقرب قهوة هنا؟"
+      ]
+    };
+
+    function renderExamplePills() {
+      examplePills.innerHTML = "";
+      samplePresets[currentDirection].forEach(sample => {
+        const btn = document.createElement("button");
+        btn.className = "example-btn";
+        btn.textContent = sample;
+        btn.onclick = () => {
+          inputText.value = sample;
+          updateCharCount();
+          executeTranslation();
+        };
+        examplePills.appendChild(btn);
+      });
+    }
+
+    function updateDirectionUI() {
+      if (currentDirection === "en_dz") {
+        sourceLangBadge.innerHTML = `<span class="flag-icon">🇬🇧</span><span>English</span>`;
+        targetLangBadge.innerHTML = `<span class="flag-icon">🇩🇿</span><span class="ar-heading" style="font-size: 1.1rem;">الدارجة الجزائرية</span>`;
+        sourceLabel.textContent = "Source Text (English)";
+        targetLabel.textContent = "Translation (Algerian Darija)";
+        inputText.placeholder = "Type your English sentence here (e.g., 'Hello, how are you?')...";
+        inputText.classList.remove("darija-input");
+        outputArea.classList.add("darija-output");
+      } else {
+        sourceLangBadge.innerHTML = `<span class="flag-icon">🇩🇿</span><span class="ar-heading" style="font-size: 1.1rem;">الدارجة الجزائرية</span>`;
+        targetLangBadge.innerHTML = `<span class="flag-icon">🇬🇧</span><span>English</span>`;
+        sourceLabel.textContent = "النص بالدارجة الجزائرية";
+        targetLabel.textContent = "Translation (English)";
+        inputText.placeholder = "اكتب هنا بالدارجة الجزائرية (مثال: واش راك اليوم؟)...";
+        inputText.classList.add("darija-input");
+        outputArea.classList.remove("darija-output");
+      }
+      renderExamplePills();
+    }
+
+    function updateCharCount() {
+      charCount.textContent = `${inputText.value.length} characters`;
+    }
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 2500);
+    }
+
+    async function executeTranslation() {
+      const text = inputText.value.trim();
+      if (!text || isTranslating) return;
+
+      isTranslating = true;
+      translateBtn.disabled = true;
+      spinner.style.display = "inline-block";
+      btnText.textContent = "Translating...";
+      outputArea.innerHTML = `<span class="output-placeholder">Generating translation with Gemma 4...</span>`;
+      latencyTag.textContent = "Inference: running...";
+
+      const startTime = performance.now();
+
+      try {
+        const response = await fetch(API_ENDPOINT, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            text: text,
+            direction: currentDirection
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Server returned HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const duration = Math.round(performance.now() - startTime);
+
+        outputArea.textContent = data.translation || "(No translation returned)";
+        latencyTag.textContent = `Inference: ${duration}ms`;
+      } catch (err) {
+        console.error("Translation error:", err);
+        outputArea.innerHTML = `<span style="color: #f87171;">Failed to connect to backend: ${err.message}</span>`;
+        latencyTag.textContent = "Inference: Error";
+      } finally {
+        isTranslating = false;
+        translateBtn.disabled = false;
+        spinner.style.display = "none";
+        btnText.textContent = "Translate / ترجم";
+      }
+    }
+
+    // Warmup request sent upon page load
+    async function warmupModel() {
+      statusDot.className = "dot";
+      statusText.textContent = "Warming up Gemma 4 model...";
+
+      try {
+        const t0 = performance.now();
+        const res = await fetch(API_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: "Hello",
+            direction: "en_dz"
+          })
+        });
+
+        if (res.ok) {
+          const warmTime = Math.round(performance.now() - t0);
+          statusDot.className = "dot ready";
+          statusText.textContent = `Model online & warmed up (${warmTime}ms)`;
+          latencyTag.textContent = `Backend Warm: Ready`;
+        } else {
+          statusDot.className = "dot error";
+          statusText.textContent = `Warmup warning: HTTP ${res.status}`;
+        }
+      } catch (e) {
+        console.warn("Backend warmup failed:", e);
+        statusDot.className = "dot error";
+        statusText.textContent = "Backend offline. Make sure 'uv run fastapi dev' is running.";
+      }
+    }
+
+    // Event Listeners
+    swapBtn.addEventListener("click", () => {
+      currentDirection = currentDirection === "en_dz" ? "dz_en" : "en_dz";
+      
+      // Swap current values if target has text
+      const currentOutput = outputArea.textContent.trim();
+      const placeholderActive = outputArea.querySelector(".output-placeholder");
+      if (currentOutput && !placeholderActive) {
+        inputText.value = currentOutput;
+      }
+      outputArea.innerHTML = `<span class="output-placeholder">The translation will appear here...</span>`;
+      
+      updateDirectionUI();
+      updateCharCount();
+    });
+
+    inputText.addEventListener("input", updateCharCount);
+
+    inputText.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        executeTranslation();
+      }
+    });
+
+    translateBtn.addEventListener("click", executeTranslation);
+
+    clearBtn.addEventListener("click", () => {
+      inputText.value = "";
+      outputArea.innerHTML = `<span class="output-placeholder">The translation will appear here...</span>`;
+      updateCharCount();
+      inputText.focus();
+    });
+
+    copyBtn.addEventListener("click", async () => {
+      const text = outputArea.textContent.trim();
+      const placeholder = outputArea.querySelector(".output-placeholder");
+      if (text && !placeholder) {
+        await navigator.clipboard.writeText(text);
+        showToast("Translation copied to clipboard!");
+      }
+    });
+
+    // Keyboard shortcut (Ctrl+S or Cmd+S to swap)
+    document.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        swapBtn.click();
+      }
+    });
+
+    // Initialize UI and fire warmup
+    updateDirectionUI();
+    renderExamplePills();
+    warmupModel();
+  </script>
+</body>
+</html>
